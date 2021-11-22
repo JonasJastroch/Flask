@@ -4,7 +4,7 @@ import random
 
 app = Flask(__name__)
 
-title = "Login-Test"
+title = "Login"
 text = ""
 user = ""
 
