@@ -48,7 +48,7 @@ def logout():
         if get_status() != "nicht angemeldet":
             set_unlogged()
             text = "Erfolgreich ausgeloggt!"
-            return render_template("indexcreate.html", title=title, text=text, user=get_status()) 
+            return render_template("indexwrong.html", title=title, text=text, user=get_status()) 
         else:
             text = "Abmeldung nicht möglich!"
             return render_template("indexwrong.html", title=title, text=text, user=get_status())
