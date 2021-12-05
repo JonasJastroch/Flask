@@ -1,12 +1,31 @@
 from flask import Flask, render_template, request
 import sqlite3
 import random
+import datetime
 
 app = Flask(__name__)
 
-title = "hahaha"
+title = "Login-Test"
 text = ""
 user = ""
+visibility = "opacity-0"
+
+conn = sqlite3.connect("data.db")
+conn.row_factory = sqlite3.Row
+zeiger = conn.cursor()
+
+exc = """
+CREATE TABLE IF NOT EXISTS login (
+    benutzername TEXT,
+    passwort TEXT,
+    logged INTEGER,
+    chats TEXT
+);"""
+
+zeiger.execute(exc)
+
+conn.commit()
+conn.close()
 
 def set_unlogged():
     print("Ausloggen...")
@@ -31,7 +50,134 @@ def get_status():
         username = username[0]
         return username
 
+def get_messages(user1, user2):
+    conn = sqlite3.connect("data.db")
+    zeiger = conn.cursor()
 
+    try:
+        name = str(f"{user1}chat{user2}")
+        m = []
+
+        ids = zeiger.execute(f"SELECT COUNT(id) FROM {name}").fetchone()
+        ids = ids[0]
+
+        for e in range(ids):
+            ms = zeiger.execute(f"SELECT * FROM {name} WHERE id=?", (e+1,)).fetchone()
+            m.append(ms)
+
+        conn.close()
+
+    except:
+        name = str(f"{user2}chat{user1}")
+        m = []
+
+        ids = zeiger.execute(f"SELECT COUNT(id) FROM {name}").fetchone()
+        ids = ids[0]
+
+        for e in range(ids):
+            ms = zeiger.execute(f"SELECT * FROM {name} WHERE id=?", (e+1,)).fetchone()
+            m.append(ms)
+
+        conn.close()
+
+    return m
+
+def new_message(user1, user2, message):
+    conn = sqlite3.connect("data.db")
+    zeiger = conn.cursor()
+
+    try:
+        name = str(f"{user1}chat{user2}")
+
+        date = datetime.date.today()
+        date = str(date).split("-")
+        date = f"{date[2]}.{date[1]}.{date[0]}"
+
+        time = datetime.datetime.now().strftime('%H:%M')
+        time = time + " Uhr"
+
+        zeiger.execute(f"INSERT INTO {name} (user1, user2, message, time, date) VALUES (?,?,?,?,?)", (user1, user2, message, date, time))
+
+        conn.commit()
+        conn.close()
+    except:
+        name = str(f"{user2}chat{user1}")
+
+        date = datetime.date.today()
+        date = str(date).split("-")
+        date = f"{date[2]}.{date[1]}.{date[0]}"
+
+        time = datetime.datetime.now().strftime('%H:%M')
+        time = time + " Uhr"
+
+        zeiger.execute(f"INSERT INTO {name} (user1, user2, message, time, date) VALUES (?,?,?,?,?)", (user1, user2, message, date, time))
+
+        conn.commit()
+        conn.close()
+
+
+def get_chats(user1):
+    conn = sqlite3.connect("data.db")
+    zeiger = conn.cursor()
+
+    chats = zeiger.execute(f"SELECT chats FROM login WHERE benutzername=?", (user1,)).fetchall()
+    chats = chats[0][0]
+
+    if chats != None:
+        print("a")
+        users = str(chats).replace("chat", "")
+        users = users.replace(user1, "")
+        if "and" in users:
+            users = users.split("and")
+        else:
+            usrs = []
+            usrs.append(users)
+            return usrs
+    else:
+        users = ""
+
+    print(users)
+
+    conn.close()
+
+    return users
+
+def add_chat(user1, user2):
+    conn = sqlite3.connect("data.db")
+    zeiger = conn.cursor()
+
+    name = str(f"{user1}chat{user2}")
+
+    c = zeiger.execute(f"SELECT chats FROM login WHERE benutzername=?", (user1,)).fetchall()
+    c = c[0][0]
+
+    print(c)
+
+    if c != None:
+        print("b")
+        chats = c + "and" + name
+    else:
+        print("c")
+        chats = name
+    zeiger.execute(f"UPDATE login SET chats=? WHERE benutzername=?", (chats, user1))
+
+
+    c = zeiger.execute(f"SELECT chats FROM login WHERE benutzername=?", (user2,)).fetchall()
+    c = c[0][0]
+
+    print(c)
+
+    if c != None:
+        print("b")
+        chats = c + "and" + name
+    else:
+        print("c")
+        chats = name
+    zeiger.execute(f"UPDATE login SET chats=? WHERE benutzername=?", (chats, user2))
+    
+
+    conn.commit()
+    conn.close()
 
 
 set_unlogged()
@@ -41,6 +187,60 @@ set_unlogged()
 @app.route("/index")
 def index():
     return render_template("index.html", title=title, user=get_status())
+
+@app.route("/chatadd", methods=["POST", "GET"])
+def add():
+
+    benutzername = ""
+
+    if request.method == "POST" or request.method == "GET":
+        benutzername = request.form["username"]
+    else:
+        return "Etwas ist schiefgelaufen!"
+
+    conn = sqlite3.connect("data.db")
+    zeiger = conn.cursor()
+
+    name = str(f"{get_status()}chat{benutzername}")
+
+    user1 = get_status()
+    user2 = benutzername
+
+    add_chat(user1, user2)
+
+    zeiger.execute(f"CREATE TABLE IF NOT EXISTS {name} (id INTEGER PRIMARY KEY AUTOINCREMENT, user1 TEXT, user2 TEXT, message TEXT, time TEXT, date TEXT);")
+
+    conn.commit()
+    conn.close()
+
+    return render_template("chat.html", title=title, user=get_status(), users=get_chats(user1), visibility=visibility)
+
+@app.route("/clicked", methods=["POST", "GET"])
+def clicked():
+
+    user1 = get_status()
+
+    if request.method == "POST" or request.method == "GET":
+        user2 = request.form["user"]
+    else:
+        return "Etwas ist schiefgelaufen!"
+
+    return render_template("chat.html", title=title, user=get_status(), chat=user2, users=get_chats(user1), visibility="opacity-100", message=get_messages(user1, user2))
+
+@app.route('/send/<usr>', methods=('GET', 'POST'))
+def send(usr):
+
+    if request.method == "POST" or request.method == "GET":
+        message = request.form["message"]
+    else:
+        return "Etwas ist schiefgelaufen!"
+
+    user1 = get_status()
+    user2 = str(usr).replace("usr=", "")
+
+    new_message(user1, user2, message)
+
+    return render_template("chat.html", title=title, user=get_status(), chat=user2, users=get_chats(user1), visibility="opacity-100", message=get_messages(user1, user2))
 
 @app.route("/logout", methods=["POST", "GET"])
 def logout():
@@ -87,7 +287,8 @@ def login():
         zeiger.execute("UPDATE login SET logged=? WHERE benutzername=?", ("1", benutzername))
         conn.commit()
         conn.close()
-        return render_template("indexcreate.html", text=text, title=title, user=get_status())
+
+        return render_template("chat.html", text=text, title=title, user=get_status(), users=get_chats(benutzername), visibility=visibility)
     else:
         text = "Benutzername oder Passwort stimmt nicht!"
         return render_template("indexwrong.html", text=text, title=title, user=get_status())
@@ -168,7 +369,9 @@ def create():
     exc = """
     CREATE TABLE IF NOT EXISTS login (
         benutzername TEXT,
-        passwort TEXT
+        passwort TEXT,
+        logged INTEGER,
+        chats TEXT
     );"""
 
     conn.execute(exc)
