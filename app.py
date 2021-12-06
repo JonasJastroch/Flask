@@ -320,27 +320,21 @@ def reset():
 
     if request.method == "POST" or request.method == "GET":
         benutzername = request.form["username"]
-        print(1)
 
     try:
         username = zeiger.execute("SELECT benutzername FROM login WHERE benutzername=?", (benutzername,)).fetchone()["benutzername"]
-        print(2)
     except:
         text = "Diesen Benutzer gibt es nicht!"
         return render_template("forget.html", text=text, title=title, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
-        print(3)
 
     if benutzername != "":
         zeiger.execute("UPDATE login SET passwort=? WHERE benutzername=?", (newpw, benutzername))
-        print(4)
     else:
         text = "Ein Benutzername muss angegeben werden!"
         return render_template("forget.html", text=text, title=title, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
-        print(5)
 
     conn.commit()
     conn.close()
-    print(6)
 
     text = "Passwort wurde erfolgreich zurückgesetzt auf: " + newpw
     return render_template("index.html", text=text, title=title, user=get_status(), alert=set_alert("success"), visibility="opacity-100")
