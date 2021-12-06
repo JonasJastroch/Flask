@@ -9,6 +9,7 @@ title = "Login-Test"
 text = ""
 user = ""
 visibility = "opacity-0"
+alert = ""
 
 conn = sqlite3.connect("data.db")
 conn.row_factory = sqlite3.Row
@@ -179,6 +180,10 @@ def add_chat(user1, user2):
     conn.commit()
     conn.close()
 
+def set_alert(alert):
+    a = alert
+    return a
+
 
 set_unlogged()
 
@@ -186,7 +191,7 @@ set_unlogged()
 
 @app.route("/index")
 def index():
-    return render_template("index.html", title=title, user=get_status())
+    return render_template("index.html", title=title, user=get_status(), visibility="opacity-0")
 
 @app.route("/chatadd", methods=["POST", "GET"])
 def add():
@@ -248,10 +253,10 @@ def logout():
         if get_status() != "nicht angemeldet":
             set_unlogged()
             text = "Erfolgreich ausgeloggt!"
-            return render_template("indexcreate.html", title=title, text=text, user=get_status()) 
+            return render_template("index.html", title=title, text=text, user=get_status(), alert=set_alert("danger"), visibility="opacity-100") 
         else:
             text = "Abmeldung nicht möglich!"
-            return render_template("indexwrong.html", title=title, text=text, user=get_status())
+            return render_template("index.html", title=title, text=text, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
 
 @app.route("/login", methods=['POST', 'GET'])
 def login():
@@ -272,10 +277,10 @@ def login():
     if benutzername == "" or passwort == "":
         text = "Alle Felder müssen ausgefüllt sein!"
         
-        return render_template("indexwrong.html", text=text, title=title, user=get_status)
+        return render_template("index.html", text=text, title=title, user=get_status, alert=set_alert("danger"), visibility="opacity-100")
 
     try:
-        password = zeiger.execute("SELECT passwort FROM login WHERE benutzername = ?", (benutzername,)).fetchone()["passwort"]
+        password = zeiger.execute("SELECT passwort FROM login WHERE benutzername=?", (benutzername,)).fetchone()["passwort"]
     except:
         return "Das Konto existiert nicht!"
 
@@ -291,16 +296,16 @@ def login():
         return render_template("chat.html", text=text, title=title, user=get_status(), users=get_chats(benutzername), visibility=visibility)
     else:
         text = "Benutzername oder Passwort stimmt nicht!"
-        return render_template("indexwrong.html", text=text, title=title, user=get_status())
+        return render_template("index.html", text=text, title=title, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
 
 
 @app.route("/forget")
 def forget():
-    return render_template("forget.html", title=title, user=get_status())
+    return render_template("forget.html", title=title, user=get_status(), visibility="opacity-0")
 
 @app.route("/register")
 def register():
-    return render_template("register.html", title=title, user=get_status())
+    return render_template("register.html", title=title, user=get_status(), visibility="opacity-0")
 
 @app.route("/reset", methods=['POST', 'GET'])
 def reset():
@@ -312,7 +317,6 @@ def reset():
     zeiger = conn.cursor()
 
     benutzername = ""
-    username = ""
 
     if request.method == "POST" or request.method == "GET":
         benutzername = request.form["username"]
@@ -323,7 +327,7 @@ def reset():
         print(2)
     except:
         text = "Diesen Benutzer gibt es nicht!"
-        return render_template("forgetwrong.html", text=text, title=title, user=get_status())
+        return render_template("forget.html", text=text, title=title, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
         print(3)
 
     if benutzername != "":
@@ -331,7 +335,7 @@ def reset():
         print(4)
     else:
         text = "Ein Benutzername muss angegeben werden!"
-        return render_template("forgetwrong.html", text=text, title=title, user=get_status())
+        return render_template("forget.html", text=text, title=title, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
         print(5)
 
     conn.commit()
@@ -339,7 +343,7 @@ def reset():
     print(6)
 
     text = "Passwort wurde erfolgreich zurückgesetzt auf: " + newpw
-    return render_template("indexcreate.html", text=text, title=title, user=get_status())
+    return render_template("index.html", text=text, title=title, user=get_status(), alert=set_alert("success"), visibility="opacity-100")
 
 @app.route("/create", methods=['POST', 'GET'])
 def create():
@@ -356,10 +360,10 @@ def create():
 
         if passwort != passwort2:
             text = "Beide Passwörter müssen identisch sein!"
-            return render_template("registerwrong.html", text=text, title=title, user=get_status())
+            return render_template("register.html", text=text, title=title, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
         elif benutzername == "" or passwort == "" or passwort2 == "":
             text = "Alle Felder müssen ausgefüllt sein!"
-            return render_template("registerwrong.html", text=text, title=title, user=get_status())
+            return render_template("register.html", text=text, title=title, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
 
 
     conn = sqlite3.connect("data.db")
@@ -390,11 +394,11 @@ def create():
             conn.commit()
             conn.close()  
             text = "Neues Konto wurde erfolgreich erstellt!"
-            return render_template("indexcreate.html", title=title, text=text, user=get_status())
+            return render_template("index.html", title=title, text=text, user=get_status(), alert=set_alert("success"), visibility="opacity-100")
 
     if username == benutzername and username != "":
         text = "Dieser Benutzername ist schon vergebeben!"
-        return render_template("registerwrong.html", text=text, title=title, user=get_status())
+        return render_template("register.html", text=text, title=title, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
     
 
 
