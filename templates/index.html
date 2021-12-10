@@ -69,10 +69,11 @@
 
                 <hr style="background-color: rgb(108,117,125);">
 
-                <form id="Login" action="/login" method="POST"></form>
-                <form id="Forget" action="/forget"></form>
-                <form id="Register" action="/register"></form>
-                <form id="logout" action="/logout" method="POST"></form>
+                <form id="Login" action="/usr={{user}}/login" method="POST"></form>
+                <form id="Forget" action="/usr={{user}}/forget"></form>
+                <form id="Register" action="/usr={{user}}/register"></form>
+                <form id="logout" action="/usr={{user}}/logout" method="POST"></form>
+                <form id="index" action="/usr={{user}}/index"></form>
 
                 <nav class="navbar navbar-light bg-dark">
                     <form class="container-fluid justify-content-start">

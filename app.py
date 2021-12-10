@@ -19,7 +19,6 @@ exc = """
 CREATE TABLE IF NOT EXISTS login (
     benutzername TEXT,
     passwort TEXT,
-    logged INTEGER,
     chats TEXT
 );"""
 
@@ -27,29 +26,6 @@ zeiger.execute(exc)
 
 conn.commit()
 conn.close()
-
-def set_unlogged():
-    print("Ausloggen...")
-    conn = sqlite3.connect("data.db")
-    conn.row_factory = sqlite3.Row
-    zeiger = conn.cursor()
-
-    zeiger.execute("UPDATE login SET logged=? WHERE logged=?", ("0", "1"))
-
-    conn.commit()
-    conn.close()
-
-def get_status():
-    conn = sqlite3.connect("data.db")
-    zeiger = conn.cursor()
-
-    username = zeiger.execute("SELECT benutzername FROM login WHERE logged=?", ("1")).fetchone()
-    conn.close()
-    if username == None or "<" in username:
-        return "nicht angemeldet"
-    else:
-        username = username[0]
-        return username
 
 def get_messages(user1, user2):
     conn = sqlite3.connect("data.db")
@@ -185,16 +161,19 @@ def set_alert(alert):
     return a
 
 
-set_unlogged()
-
 @app.route("/")
 
 @app.route("/index")
-def index():
-    return render_template("index.html", title=title, user=get_status(), visibility="opacity-0")
+def load():
+    return render_template("load.html", user="nicht angemeldet")
 
-@app.route("/chatadd", methods=["POST", "GET"])
-def add():
+@app.route("/<usr>/index")
+def index(usr):
+    user1 = str(usr).replace("usr=", "")
+    return render_template("index.html", title=title, user=user1, visibility="opacity-0")
+
+@app.route("/<usr>/chatadd", methods=["POST", "GET"])
+def add(usr):
 
     benutzername = ""
 
@@ -206,10 +185,10 @@ def add():
     conn = sqlite3.connect("data.db")
     zeiger = conn.cursor()
 
-    name = str(f"{get_status()}chat{benutzername}")
-
-    user1 = get_status()
+    user1 = str(usr).replace("usr=", "")
     user2 = benutzername
+
+    name = str(f"{user1}chat{benutzername}")
 
     add_chat(user1, user2)
 
@@ -218,48 +197,59 @@ def add():
     conn.commit()
     conn.close()
 
-    return render_template("chat.html", title=title, user=get_status(), users=get_chats(user1), visibility=visibility)
+    return render_template("chat.html", title=title, user=user1, users=get_chats(user1), visibility=visibility)
 
-@app.route("/clicked", methods=["POST", "GET"])
-def clicked():
+@app.route("/<usr>/clicked/<chat>", methods=["POST", "GET"])
+def clicked(usr, chat):
 
-    user1 = get_status()
+    user1 = str(usr).replace("usr=", "")
 
     if request.method == "POST" or request.method == "GET":
-        user2 = request.form["user"]
+        try:
+            user2 = request.form["user"]
+        except:
+            user2 = str(chat).replace("chat=", "")
     else:
         return "Etwas ist schiefgelaufen!"
 
-    return render_template("chat.html", title=title, user=get_status(), chat=user2, users=get_chats(user1), visibility="opacity-100", message=get_messages(user1, user2))
+    return render_template("chat.html", title=title, user=user1, chat=user2, users=get_chats(user1), visibility="opacity-100", message=get_messages(user1, user2))
 
-@app.route('/send/<usr>', methods=('GET', 'POST'))
-def send(usr):
+@app.route('/<usr>/send/<chat>', methods=('GET', 'POST'))
+def send(usr, chat):
 
     if request.method == "POST" or request.method == "GET":
         message = request.form["message"]
     else:
         return "Etwas ist schiefgelaufen!"
 
-    user1 = get_status()
-    user2 = str(usr).replace("usr=", "")
+    user1 = str(usr).replace("usr=", "")
+    user2 = str(chat).replace("chat=", "")
 
     new_message(user1, user2, message)
 
-    return render_template("chat.html", title=title, user=get_status(), chat=user2, users=get_chats(user1), visibility="opacity-100", message=get_messages(user1, user2))
+    #return render_template("chat.html", title=title, user=user1, chat=user2, users=get_chats(user1), visibility="opacity-100", message=get_messages(user1, user2))
+    return render_template("clickedrefresh.html", user=user1, chat=user2)
 
-@app.route("/logout", methods=["POST", "GET"])
-def logout():
+@app.route("/<usr>/logout", methods=["GET", "POST"])
+def logout(usr):
+    user1 = str(usr).replace("usr=", "")
     if request.method == "POST" or request.method == "GET":
-        if get_status() != "nicht angemeldet":
-            set_unlogged()
+        if user1 != "nicht angemeldet":
             text = "Erfolgreich ausgeloggt!"
-            return render_template("index.html", title=title, text=text, user=get_status(), alert=set_alert("danger"), visibility="opacity-100") 
+            return render_template("load.html", user="nicht angemeldet") 
         else:
             text = "Abmeldung nicht möglich!"
-            return render_template("index.html", title=title, text=text, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
+            return render_template("index.html", title=title, text=text, user=user1, alert=set_alert("danger"), visibility="opacity-100")
 
-@app.route("/login", methods=['POST', 'GET'])
-def login():
+@app.route("/<usr>/chat")
+def chat(usr):
+    user1 = str(usr).replace("usr=", "")
+    return render_template("chat.html", title=title, user=user1, users=get_chats(user1), visibility=visibility, chat="")
+
+@app.route("/<usr>/login", methods=['POST', 'GET'])
+def login(usr):
+
+    user1 = str(usr).replace("usr=", "")
 
     conn = sqlite3.connect("data.db")
     conn.row_factory = sqlite3.Row
@@ -277,7 +267,7 @@ def login():
     if benutzername == "" or passwort == "":
         text = "Alle Felder müssen ausgefüllt sein!"
         
-        return render_template("index.html", text=text, title=title, user=get_status, alert=set_alert("danger"), visibility="opacity-100")
+        return render_template("index.html", text=text, title=title, user=user1, alert=set_alert("danger"), visibility="opacity-100")
 
     try:
         password = zeiger.execute("SELECT passwort FROM login WHERE benutzername=?", (benutzername,)).fetchone()["passwort"]
@@ -286,29 +276,33 @@ def login():
 
     if passwort == password:
         text = "Erfolgreich eingeloggt!"
-        if get_status() != "nicht angemeldet":
-            zeiger.execute("UPDATE login SET logged=? WHERE benutzername=?", ("0", str(get_status())))
+        # if user1 != "nicht angemeldet":
+        #     zeiger.execute("UPDATE login SET logged=? WHERE benutzername=?", ("0", user1))
                 
-        zeiger.execute("UPDATE login SET logged=? WHERE benutzername=?", ("1", benutzername))
+        # zeiger.execute("UPDATE login SET logged=? WHERE benutzername=?", ("1", benutzername))
         conn.commit()
         conn.close()
 
-        return render_template("chat.html", text=text, title=title, user=get_status(), users=get_chats(benutzername), visibility=visibility)
+        return render_template("refresh.html", user=benutzername)
     else:
         text = "Benutzername oder Passwort stimmt nicht!"
-        return render_template("index.html", text=text, title=title, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
+        return render_template("index.html", text=text, title=title, user=user1, alert=set_alert("danger"), visibility="opacity-100")
 
 
-@app.route("/forget")
-def forget():
-    return render_template("forget.html", title=title, user=get_status(), visibility="opacity-0")
+@app.route("/<usr>/forget")
+def forget(usr):
+    user1 = str(usr).replace("usr=", "")
+    return render_template("forget.html", title=title, user=user1, visibility="opacity-0")
 
-@app.route("/register")
-def register():
-    return render_template("register.html", title=title, user=get_status(), visibility="opacity-0")
+@app.route("/<usr>/register")
+def register(usr):
+    user1 = str(usr).replace("usr=", "")
+    return render_template("register.html", title=title, user=user1, visibility="opacity-0")
 
-@app.route("/reset", methods=['POST', 'GET'])
-def reset():
+@app.route("/<usr>/reset", methods=['POST', 'GET'])
+def reset(usr):
+
+    user1 = str(usr).replace("usr=", "")
 
     newpw = str(random.randint(1,9)) + "" + str(random.randint(1,9)) + "" + str(random.randint(1,9))
 
@@ -325,22 +319,24 @@ def reset():
         username = zeiger.execute("SELECT benutzername FROM login WHERE benutzername=?", (benutzername,)).fetchone()["benutzername"]
     except:
         text = "Diesen Benutzer gibt es nicht!"
-        return render_template("forget.html", text=text, title=title, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
+        return render_template("forget.html", text=text, title=title, user=user1, alert=set_alert("danger"), visibility="opacity-100")
 
     if benutzername != "":
         zeiger.execute("UPDATE login SET passwort=? WHERE benutzername=?", (newpw, benutzername))
     else:
         text = "Ein Benutzername muss angegeben werden!"
-        return render_template("forget.html", text=text, title=title, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
+        return render_template("forget.html", text=text, title=title, user=user1, alert=set_alert("danger"), visibility="opacity-100")
 
     conn.commit()
     conn.close()
 
     text = "Passwort wurde erfolgreich zurückgesetzt auf: " + newpw
-    return render_template("index.html", text=text, title=title, user=get_status(), alert=set_alert("success"), visibility="opacity-100")
+    return render_template("index.html", text=text, title=title, user=user1, alert=set_alert("success"), visibility="opacity-100")
 
-@app.route("/create", methods=['POST', 'GET'])
-def create():
+@app.route("/<usr>/create", methods=['POST', 'GET'])
+def create(usr):
+
+    user1 = str(usr).replace("usr=", "")
 
     benutzername = ""
     passwort = ""
@@ -354,10 +350,10 @@ def create():
 
         if passwort != passwort2:
             text = "Beide Passwörter müssen identisch sein!"
-            return render_template("register.html", text=text, title=title, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
+            return render_template("register.html", text=text, title=title, user=user1, alert=set_alert("danger"), visibility="opacity-100")
         elif benutzername == "" or passwort == "" or passwort2 == "":
             text = "Alle Felder müssen ausgefüllt sein!"
-            return render_template("register.html", text=text, title=title, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
+            return render_template("register.html", text=text, title=title, user=user1, alert=set_alert("danger"), visibility="opacity-100")
 
 
     conn = sqlite3.connect("data.db")
@@ -368,7 +364,6 @@ def create():
     CREATE TABLE IF NOT EXISTS login (
         benutzername TEXT,
         passwort TEXT,
-        logged INTEGER,
         chats TEXT
     );"""
 
@@ -380,19 +375,19 @@ def create():
         except:
             zeiger.execute("INSERT INTO login (benutzername, passwort) VALUES (?, ?)", (benutzername, passwort))
 
-            if get_status() != "nicht angemeldet":
-                zeiger.execute("UPDATE login SET logged=? WHERE benutzername=?", ("0", str(get_status())))
+            # if user1 != "nicht angemeldet":
+            #     zeiger.execute("UPDATE login SET logged=? WHERE benutzername=?", ("0", user1))
                 
-            zeiger.execute("UPDATE login SET logged=? WHERE benutzername=?", ("1", benutzername))
+            # zeiger.execute("UPDATE login SET logged=? WHERE benutzername=?", ("1", benutzername))
 
             conn.commit()
             conn.close()  
             text = "Neues Konto wurde erfolgreich erstellt!"
-            return render_template("index.html", title=title, text=text, user=get_status(), alert=set_alert("success"), visibility="opacity-100")
+            return render_template("load.html", user=benutzername)
 
     if username == benutzername and username != "":
         text = "Dieser Benutzername ist schon vergebeben!"
-        return render_template("register.html", text=text, title=title, user=get_status(), alert=set_alert("danger"), visibility="opacity-100")
+        return render_template("register.html", text=text, title=title, user=user1, alert=set_alert("danger"), visibility="opacity-100")
     
 
 
