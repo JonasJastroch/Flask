@@ -5,7 +5,7 @@ import datetime
 
 app = Flask(__name__)
 
-title = "Login-Test"
+title = "PUPLYC"
 text = ""
 user = ""
 visibility = "opacity-0"
